@@ -149,15 +149,13 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                             value={answerData}
                             onChange={(e) => setAnswerData(e.target.value)}
                             placeholder="Paste the guest's answer key here..."
-                            disabled={status === 'connected'}
-                            className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                            className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <button
                             onClick={handleConnect}
-                            disabled={status === 'connected'}
-                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
                         >
-                            {status === 'connected' ? 'Connected!' : 'Connect'}
+                            Connect
                         </button>
                     </div>
                 )}
