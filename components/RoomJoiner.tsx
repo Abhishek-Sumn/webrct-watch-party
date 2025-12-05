@@ -31,9 +31,8 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
         try {
             const offer = JSON.parse(offerData);
 
-            // CRITICAL: Guest must only accept OFFER, not ANSWER
             if (offer.type !== 'offer') {
-                setErrorMessage('❌ Wrong signal type! As GUEST, you must paste the HOST\'s OFFER (type: "offer"), not an answer. Check the JSON "type" field.');
+                setErrorMessage('❌ Wrong signal type! As GUEST, you must paste the HOST\'s OFFER (type: "offer"), not an answer.');
                 return;
             }
 
@@ -46,21 +45,23 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
                 onSignal: (data: SignalData) => {
                     const answer = JSON.stringify(data, null, 2);
                     setAnswerData(answer);
-                    // Auto-copy to clipboard
                     copyToClipboard(answer);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                 },
                 onConnect: () => {
+                    console.log('[GUEST] Peer connected!');
                     setStatus('connected');
                     onConnectionEstablished(newPeer);
                 },
                 onData: () => { },
                 onError: (err: Error) => {
+                    console.error('[GUEST] Peer error:', err);
                     setStatus('error');
                     setErrorMessage(err.message || 'Connection error occurred');
                 },
                 onClose: () => {
+                    console.log('[GUEST] Peer closed');
                     setStatus('idle');
                 }
             });
@@ -90,24 +91,22 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
             </h2>
 
             <div className="space-y-6">
-                {/* Step 1: Paste Offer */}
                 <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                        Step 1: Paste Host's OFFER Key
+                        Step 1: Paste Host&apos;s OFFER Key
                     </h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        ⚠️ Important: Paste the OFFER from your host (JSON with type: "offer")
+                        ⚠️ Important: Paste the OFFER from your host (JSON with type: &quot;offer&quot;)
                     </p>
                     <textarea
                         value={offerData}
                         onChange={(e) => setOfferData(e.target.value)}
-                        placeholder="Paste the host's OFFER here... (should have type: offer)"
+                        placeholder="Paste the host's OFFER here..."
                         disabled={status === 'connected'}
                         className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     />
                 </div>
 
-                {/* Step 2: Generate Answer */}
                 <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                         Step 2: Generate Your ANSWER Response
@@ -121,7 +120,6 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
                     </button>
                 </div>
 
-                {/* Display Answer Data */}
                 {answerData && (
                     <div className="space-y-3 animate-fadeIn">
                         <div className="flex justify-between items-center">
@@ -141,12 +139,11 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
                             className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            📤 Send this ANSWER back to the host (it has type: "answer")
+                            📤 Send this ANSWER back to the host (it has type: &quot;answer&quot;)
                         </p>
                     </div>
                 )}
 
-                {/* Status Messages */}
                 {status === 'connected' && (
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-fadeIn">
                         <p className="text-green-800 dark:text-green-200 font-medium">

@@ -16,12 +16,12 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
     const [status, setStatus] = useState<'idle' | 'generating' | 'waiting' | 'connecting' | 'connected' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [copied, setCopied] = useState<boolean>(false);
-    const hasSignaledRef = useRef<boolean>(false); // Track if we've already signaled
+    const hasSignaledRef = useRef<boolean>(false);
 
     const handleGenerateOffer = () => {
         setStatus('generating');
         setErrorMessage('');
-        hasSignaledRef.current = false; // Reset signaled flag
+        hasSignaledRef.current = false;
 
         const newPeer = createPeerConnection(true);
 
@@ -44,7 +44,7 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 console.error('[HOST] Peer error:', err);
                 setStatus('error');
                 setErrorMessage(err.message || 'Connection error occurred');
-                hasSignaledRef.current = false; // Reset on error
+                hasSignaledRef.current = false;
             },
             onClose: () => {
                 console.log('[HOST] Peer closed');
@@ -62,20 +62,17 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
             return;
         }
 
-        // Prevent multiple signal attempts
         if (hasSignaledRef.current) {
             console.log('[HOST] Already signaled, ignoring duplicate attempt');
             setErrorMessage('Already processing connection. Please wait...');
             return;
         }
 
-        // Prevent signaling if already connected
         if (status === 'connected') {
             setErrorMessage('Already connected!');
             return;
         }
 
-        // Check if peer is destroyed
         if (peer.destroyed) {
             setErrorMessage('Connection was closed. Please refresh and try again.');
             return;
@@ -89,22 +86,21 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
         try {
             const answer = JSON.parse(answerData);
 
-            // CRITICAL: Host must only accept ANSWER, not OFFER
             if (answer.type !== 'answer') {
-                setErrorMessage('❌ Wrong signal type! As HOST, you must paste the GUEST\'s ANSWER (type: "answer"), not an offer. Check the JSON "type" field.');
+                setErrorMessage('❌ Wrong signal type! As HOST, you must paste the GUEST\'s ANSWER (type: "answer"), not an offer.');
                 return;
             }
 
             console.log('[HOST] Signaling peer with answer...');
             setStatus('connecting');
-            hasSignaledRef.current = true; // Mark as signaled
+            hasSignaledRef.current = true;
             peer.signal(answer);
-            setErrorMessage(''); // Clear any previous errors
+            setErrorMessage('');
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Failed to establish connection';
             setErrorMessage(errorMsg);
             console.error('[HOST] Signal error:', err);
-            hasSignaledRef.current = false; // Reset on error
+            hasSignaledRef.current = false;
             setStatus('waiting');
         }
     };
@@ -126,7 +122,6 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
             </h2>
 
             <div className="space-y-6">
-                {/* Step 1: Generate Offer */}
                 <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                         Step 1: Generate Room Key (OFFER)
@@ -140,7 +135,6 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                     </button>
                 </div>
 
-                {/* Display Offer Data */}
                 {offerData && (
                     <div className="space-y-3 animate-fadeIn">
                         <div className="flex justify-between items-center">
@@ -160,24 +154,23 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                             className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            📤 Send this OFFER to your guest (it has type: "offer")
+                            📤 Send this OFFER to your guest (it has type: &quot;offer&quot;)
                         </p>
                     </div>
                 )}
 
-                {/* Receive Answer */}
                 {status === 'waiting' && (
                     <div className="space-y-3 animate-fadeIn">
                         <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                            Step 3: Paste Guest's ANSWER Response
+                            Step 3: Paste Guest&apos;s ANSWER Response
                         </h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            ⚠️  Important: Paste the ANSWER from your guest (JSON with type: "answer")
+                            ⚠️ Important: Paste the ANSWER from your guest (JSON with type: &quot;answer&quot;)
                         </p>
                         <textarea
                             value={answerData}
                             onChange={(e) => setAnswerData(e.target.value)}
-                            placeholder="Paste the guest's ANSWER here... (should have type: answer)"
+                            placeholder="Paste the guest's ANSWER here..."
                             className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <button
@@ -190,7 +183,6 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                     </div>
                 )}
 
-                {/* Status Messages */}
                 {status === 'connecting' && (
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg animate-fadeIn">
                         <p className="text-blue-800 dark:text-blue-200 font-medium">

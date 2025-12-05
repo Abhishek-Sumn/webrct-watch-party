@@ -9,7 +9,7 @@ import { SyncMessage, SignalData } from './types';
 export function createPeerConnection(isInitiator: boolean): Peer.Instance {
     const peer = new Peer({
         initiator: isInitiator,
-        trickle: false,
+        trickle: false, // Disabled for simpler signaling
         config: {
             iceServers: [
                 // Google's public STUN servers
@@ -36,8 +36,20 @@ export function createPeerConnection(isInitiator: boolean): Peer.Instance {
                     urls: 'turn:openrelay.metered.ca:443?transport=tcp',
                     username: 'openrelayproject',
                     credential: 'openrelayproject'
+                },
+                // Additional free TURN servers
+                {
+                    urls: 'turn:numb.viagenie.ca',
+                    username: 'webrtc@live.com',
+                    credential: 'muazkh'
+                },
+                {
+                    urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
+                    username: 'webrtc',
+                    credential: 'webrtc'
                 }
-            ]
+            ],
+            iceTransportPolicy: 'all'
         }
     });
 
@@ -46,8 +58,6 @@ export function createPeerConnection(isInitiator: boolean): Peer.Instance {
 
 /**
  * Sets up event listeners for a peer connection
- * @param peer - SimplePeer instance
- * @param callbacks - Event handler callbacks
  */
 export function setupPeerListeners(
     peer: Peer.Instance,
@@ -64,6 +74,7 @@ export function setupPeerListeners(
     });
 
     peer.on('connect', () => {
+        console.log('[WebRTC] ✅ Peer connected!');
         callbacks.onConnect();
     });
 
@@ -72,64 +83,60 @@ export function setupPeerListeners(
             const message: SyncMessage = JSON.parse(data.toString());
             callbacks.onData(message);
         } catch (err) {
-            console.error('Failed to parse peer data:', err);
+            console.error('[WebRTC] Failed to parse peer data:', err);
         }
     });
 
     peer.on('error', (err: Error) => {
+        console.error('[WebRTC] ❌ Peer error:', err.message);
         callbacks.onError(err);
     });
 
     peer.on('close', () => {
+        console.log('[WebRTC] Connection closed');
         callbacks.onClose();
+    });
+
+    // ICE state debugging
+    peer.on('iceStateChange', (iceConnectionState: string, iceGatheringState: string) => {
+        console.log(`[WebRTC] ICE Connection: ${iceConnectionState}, Gathering: ${iceGatheringState}`);
+
+        if (iceConnectionState === 'failed') {
+            console.error('[WebRTC] 🔴 ICE FAILED - Check TURN servers or firewall');
+        } else if (iceConnectionState === 'connected' || iceConnectionState === 'completed') {
+            console.log('[WebRTC] ✅ ICE Connection established!');
+        }
     });
 }
 
-/**
- * Sends a sync message to the peer
- * @param peer - SimplePeer instance
- * @param message - Sync message to send
- */
 export function sendSyncMessage(peer: Peer.Instance | null, message: SyncMessage): void {
     if (!peer || peer.destroyed) {
-        console.warn('Cannot send message: peer is not connected or destroyed');
+        console.warn('[WebRTC] Cannot send message: peer not connected');
         return;
     }
 
     try {
-        const data = JSON.stringify(message);
-        peer.send(data);
+        peer.send(JSON.stringify(message));
     } catch (err) {
-        console.error('Failed to send sync message:', err);
+        console.error('[WebRTC] Failed to send sync message:', err);
     }
 }
 
-/**
- * Generates a unique sender ID
- */
 export function generateSenderId(): string {
     return `peer-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-/**
- * Copies text to clipboard with fallback for older browsers
- * @param text - Text to copy
- */
 export async function copyToClipboard(text: string): Promise<boolean> {
     try {
-        // Modern clipboard API
         if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
             return true;
         } else {
-            // Fallback for older browsers or non-secure contexts
             const textArea = document.createElement('textarea');
             textArea.value = text;
             textArea.style.position = 'fixed';
             textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
             document.body.appendChild(textArea);
-            textArea.focus();
             textArea.select();
 
             try {
@@ -138,20 +145,15 @@ export async function copyToClipboard(text: string): Promise<boolean> {
                 return successful;
             } catch (err) {
                 document.body.removeChild(textArea);
-                console.error('Fallback: Failed to copy:', err);
                 return false;
             }
         }
     } catch (err) {
-        console.error('Failed to copy to clipboard:', err);
+        console.error('Failed to copy:', err);
         return false;
     }
 }
 
-/**
- * Validates signaling data format
- * @param data - Data to validate
- */
 export function validateSignalData(data: string): boolean {
     try {
         const parsed = JSON.parse(data);
