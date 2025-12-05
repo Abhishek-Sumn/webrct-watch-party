@@ -28,7 +28,6 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 const offer = JSON.stringify(data, null, 2);
                 setOfferData(offer);
                 setStatus('waiting');
-                // Auto-copy to clipboard
                 copyToClipboard(offer);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
@@ -56,6 +55,18 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
             return;
         }
 
+        // Prevent signaling if already connected
+        if (status === 'connected') {
+            setErrorMessage('Already connected!');
+            return;
+        }
+
+        // Check if peer is destroyed
+        if (peer.destroyed) {
+            setErrorMessage('Connection was closed. Please refresh and try again.');
+            return;
+        }
+
         if (!validateSignalData(answerData)) {
             setErrorMessage('Invalid answer data format');
             return;
@@ -64,8 +75,11 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
         try {
             const answer = JSON.parse(answerData);
             peer.signal(answer);
+            setErrorMessage(''); // Clear any previous errors
         } catch (err) {
-            setErrorMessage('Failed to parse answer data');
+            const errorMsg = err instanceof Error ? err.message : 'Failed to establish connection';
+            setErrorMessage(errorMsg);
+            console.error('Signal error:', err);
         }
     };
 
@@ -74,6 +88,8 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
         if (success) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+        } else {
+            setErrorMessage('Failed to copy to clipboard. Please copy manually.');
         }
     };
 
@@ -133,13 +149,15 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                             value={answerData}
                             onChange={(e) => setAnswerData(e.target.value)}
                             placeholder="Paste the guest's answer key here..."
-                            className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            disabled={status === 'connected'}
+                            className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                         />
                         <button
                             onClick={handleConnect}
-                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                            disabled={status === 'connected'}
+                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                         >
-                            Connect
+                            {status === 'connected' ? 'Connected!' : 'Connect'}
                         </button>
                     </div>
                 )}
