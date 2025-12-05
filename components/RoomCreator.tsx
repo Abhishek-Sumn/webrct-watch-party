@@ -74,6 +74,13 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
 
         try {
             const answer = JSON.parse(answerData);
+
+            // CRITICAL: Host must only accept ANSWER, not OFFER
+            if (answer.type !== 'answer') {
+                setErrorMessage('❌ Wrong signal type! As HOST, you must paste the GUEST\'s ANSWER (type: "answer"), not an offer. Check the JSON "type" field.');
+                return;
+            }
+
             peer.signal(answer);
             setErrorMessage(''); // Clear any previous errors
         } catch (err) {
@@ -103,7 +110,7 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 {/* Step 1: Generate Offer */}
                 <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                        Step 1: Generate Room Key
+                        Step 1: Generate Room Key (OFFER)
                     </h3>
                     <button
                         onClick={handleGenerateOffer}
@@ -119,7 +126,7 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                     <div className="space-y-3 animate-fadeIn">
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                                Step 2: Share This Key With Guest
+                                Step 2: Share This OFFER With Guest
                             </h3>
                             <button
                                 onClick={handleCopy}
@@ -134,7 +141,7 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                             className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            Share this key with your guest via any messaging app
+                            📤 Send this OFFER to your guest (it has type: "offer")
                         </p>
                     </div>
                 )}
@@ -143,12 +150,15 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 {status === 'waiting' && (
                     <div className="space-y-3 animate-fadeIn">
                         <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                            Step 3: Paste Guest's Response
+                            Step 3: Paste Guest's ANSWER Response
                         </h3>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            ⚠️ Important: Paste the ANSWER from your guest (JSON with type: "answer")
+                        </p>
                         <textarea
                             value={answerData}
                             onChange={(e) => setAnswerData(e.target.value)}
-                            placeholder="Paste the guest's answer key here..."
+                            placeholder="Paste the guest's ANSWER here... (should have type: answer)"
                             className="w-full h-32 p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <button
