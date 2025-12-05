@@ -182,10 +182,10 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                         />
                         <button
                             onClick={handleConnect}
-                            disabled={status === 'connecting' || hasSignaledRef.current}
+                            disabled={hasSignaledRef.current}
                             className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                         >
-                            {status === 'connecting' ? 'Connecting...' : 'Connect'}
+                            Connect
                         </button>
                     </div>
                 )}
