@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Peer from 'simple-peer';
 import { createPeerConnection, setupPeerListeners, copyToClipboard, validateSignalData } from '@/lib/webrtc';
 import { SignalData } from '@/lib/types';
@@ -13,13 +13,15 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
     const [peer, setPeer] = useState<Peer.Instance | null>(null);
     const [offerData, setOfferData] = useState<string>('');
     const [answerData, setAnswerData] = useState<string>('');
-    const [status, setStatus] = useState<'idle' | 'generating' | 'waiting' | 'connected' | 'error'>('idle');
+    const [status, setStatus] = useState<'idle' | 'generating' | 'waiting' | 'connecting' | 'connected' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [copied, setCopied] = useState<boolean>(false);
+    const hasSignaledRef = useRef<boolean>(false); // Track if we've already signaled
 
     const handleGenerateOffer = () => {
         setStatus('generating');
         setErrorMessage('');
+        hasSignaledRef.current = false; // Reset signaled flag
 
         const newPeer = createPeerConnection(true);
 
@@ -33,16 +35,21 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 setTimeout(() => setCopied(false), 2000);
             },
             onConnect: () => {
+                console.log('[HOST] Peer connected!');
                 setStatus('connected');
                 onConnectionEstablished(newPeer);
             },
             onData: () => { },
             onError: (err: Error) => {
+                console.error('[HOST] Peer error:', err);
                 setStatus('error');
                 setErrorMessage(err.message || 'Connection error occurred');
+                hasSignaledRef.current = false; // Reset on error
             },
             onClose: () => {
+                console.log('[HOST] Peer closed');
                 setStatus('idle');
+                hasSignaledRef.current = false;
             }
         });
 
@@ -52,6 +59,13 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
     const handleConnect = () => {
         if (!peer || !answerData.trim()) {
             setErrorMessage('Please paste the guest\'s answer data');
+            return;
+        }
+
+        // Prevent multiple signal attempts
+        if (hasSignaledRef.current) {
+            console.log('[HOST] Already signaled, ignoring duplicate attempt');
+            setErrorMessage('Already processing connection. Please wait...');
             return;
         }
 
@@ -81,12 +95,17 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                 return;
             }
 
+            console.log('[HOST] Signaling peer with answer...');
+            setStatus('connecting');
+            hasSignaledRef.current = true; // Mark as signaled
             peer.signal(answer);
             setErrorMessage(''); // Clear any previous errors
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Failed to establish connection';
             setErrorMessage(errorMsg);
-            console.error('Signal error:', err);
+            console.error('[HOST] Signal error:', err);
+            hasSignaledRef.current = false; // Reset on error
+            setStatus('waiting');
         }
     };
 
@@ -153,7 +172,7 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                             Step 3: Paste Guest's ANSWER Response
                         </h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            ⚠️ Important: Paste the ANSWER from your guest (JSON with type: "answer")
+                            ⚠️  Important: Paste the ANSWER from your guest (JSON with type: "answer")
                         </p>
                         <textarea
                             value={answerData}
@@ -163,14 +182,23 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
                         />
                         <button
                             onClick={handleConnect}
-                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                            disabled={status === 'connecting' || hasSignaledRef.current}
+                            className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
                         >
-                            Connect
+                            {status === 'connecting' ? 'Connecting...' : 'Connect'}
                         </button>
                     </div>
                 )}
 
                 {/* Status Messages */}
+                {status === 'connecting' && (
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg animate-fadeIn">
+                        <p className="text-blue-800 dark:text-blue-200 font-medium">
+                            🔄 Establishing connection... Please wait.
+                        </p>
+                    </div>
+                )}
+
                 {status === 'connected' && (
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-fadeIn">
                         <p className="text-green-800 dark:text-green-200 font-medium">
