@@ -9,19 +9,18 @@ import { SyncMessage, SignalData } from './types';
 export function createPeerConnection(isInitiator: boolean): Peer.Instance {
     const peer = new Peer({
         initiator: isInitiator,
-        trickle: false, // Disabled for simpler signaling
+        trickle: false, // Keep false for simpler initial signaling (though slower)
         config: {
             iceServers: [
-                // Google's public STUN servers
+                // 1. Google STUN (High Reliability, multiple ports)
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
                 { urls: 'stun:stun3.l.google.com:19302' },
                 { urls: 'stun:stun4.l.google.com:19302' },
-                // Additional public STUN servers
-                { urls: 'stun:stun.stunprotocol.org:3478' },
-                { urls: 'stun:stun.voip.blackberry.com:3478' },
-                // Open relay project (free TURN server)
+
+                // 2. OpenRelay TURN (Verified Free Tier)
+                // Critical for Mobile/Symmetric NATs where STUN is not enough
                 {
                     urls: 'turn:openrelay.metered.ca:80',
                     username: 'openrelayproject',
@@ -36,20 +35,10 @@ export function createPeerConnection(isInitiator: boolean): Peer.Instance {
                     urls: 'turn:openrelay.metered.ca:443?transport=tcp',
                     username: 'openrelayproject',
                     credential: 'openrelayproject'
-                },
-                // Additional free TURN servers
-                {
-                    urls: 'turn:numb.viagenie.ca',
-                    username: 'webrtc@live.com',
-                    credential: 'muazkh'
-                },
-                {
-                    urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
-                    username: 'webrtc',
-                    credential: 'webrtc'
                 }
             ],
-            iceTransportPolicy: 'all'
+            iceTransportPolicy: 'all',
+            iceCandidatePoolSize: 10
         }
     });
 
@@ -97,16 +86,42 @@ export function setupPeerListeners(
         callbacks.onClose();
     });
 
-    // ICE state debugging
-    peer.on('iceStateChange', (iceConnectionState: string, iceGatheringState: string) => {
-        console.log(`[WebRTC] ICE Connection: ${iceConnectionState}, Gathering: ${iceGatheringState}`);
-
-        if (iceConnectionState === 'failed') {
-            console.error('[WebRTC] 🔴 ICE FAILED - Check TURN servers or firewall');
-        } else if (iceConnectionState === 'connected' || iceConnectionState === 'completed') {
-            console.log('[WebRTC] ✅ ICE Connection established!');
-        }
+    // Enhanced ICE Debugging
+    // @ts-ignore - SimplePeer types might not fully expose extensive ICE events
+    peer.on('iceStateChange', (connectionState, gatheringState) => {
+        // Note: simple-peer generally emits this as standard event or via the internal pc
+        console.log(`[WebRTC Debug] Connection: ${connectionState}, Gathering: ${gatheringState}`);
     });
+
+    // Enhanced ICE Debugging & Fail-safe Connection
+    // @ts-ignore - SimplePeer's _pc is internal but we need it for reliable state monitoring
+    const pc = peer._pc as RTCPeerConnection;
+
+    if (pc) {
+        pc.onconnectionstatechange = () => {
+            console.log('[WebRTC Debug] Connection State Change:', pc.connectionState);
+
+            // FAIL-SAFE: If the PC says connected but SimplePeer hasn't fired 'connect' yet,
+            // we should treat it as connected to unblock the UI.
+            if (pc.connectionState === 'connected') {
+                console.log('[WebRTC] 🛡️ Fallback: Connection state is valid. Forcing connect event.');
+                // We wrap in a small timeout to give the standard event a chance to fire first
+                setTimeout(() => {
+                    if (!peer.destroyed) {
+                        callbacks.onConnect();
+                    }
+                }, 500);
+            }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            console.log('[WebRTC Debug] ICE State Change:', pc.iceConnectionState);
+            if (pc.iceConnectionState === 'failed') {
+                console.error('[WebRTC] ICE Connection Failed. Likely blocked by Firewall or Symmetric NAT.');
+                callbacks.onError(new Error('ICE Connection Failed: Firewall blocked or network unrelated.'));
+            }
+        };
+    }
 }
 
 export function sendSyncMessage(peer: Peer.Instance | null, message: SyncMessage): void {

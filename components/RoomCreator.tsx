@@ -28,6 +28,23 @@ export default function RoomCreator({ onConnectionEstablished }: RoomCreatorProp
         setupPeerListeners(newPeer, {
             onSignal: (data: SignalData) => {
                 const offer = JSON.stringify(data, null, 2);
+
+                // WAN Check: Do we have public candidates?
+                const isWANReady = offer.includes('typ srflx');
+                const hasRelay = offer.includes('typ relay');
+
+                if (!isWANReady && !hasRelay) {
+                    console.warn('[HOST] Warning: No Public (WAN) candidates found!');
+                    setErrorMessage('⚠️ Warning: No public IP found. Internet connection will likely fail.');
+                } else if (!hasRelay) {
+                    // We have public IP but no Relay. This is risky for Mobile networks.
+                    console.warn('[HOST] Warning: No TURN (Relay) candidates. Mobile connection might fail.');
+                    // Don't show user error yet, just warn in console, or maybe a soft warning?
+                    // setErrorMessage('⚠️ Note: No Relay candidates. Mobile/Hotspot connections might be unstable.');
+                } else {
+                    setErrorMessage('');
+                }
+
                 setOfferData(offer);
                 setStatus('waiting');
                 copyToClipboard(offer);

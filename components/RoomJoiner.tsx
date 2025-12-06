@@ -44,6 +44,20 @@ export default function RoomJoiner({ onConnectionEstablished }: RoomJoinerProps)
             setupPeerListeners(newPeer, {
                 onSignal: (data: SignalData) => {
                     const answer = JSON.stringify(data, null, 2);
+
+                    // WAN Check: Do we have public candidates?
+                    const isWANReady = answer.includes('typ srflx');
+                    const hasRelay = answer.includes('typ relay');
+
+                    if (!isWANReady && !hasRelay) {
+                        console.warn('[GUEST] Warning: No Public (WAN) candidates found!');
+                        setErrorMessage('⚠️ Warning: No public IP found. Internet connection will likely fail.');
+                    } else if (!hasRelay) {
+                        console.warn('[GUEST] Warning: No TURN (Relay) candidates. Mobile connection might fail.');
+                    } else {
+                        setErrorMessage('');
+                    }
+
                     setAnswerData(answer);
                     copyToClipboard(answer);
                     setCopied(true);
