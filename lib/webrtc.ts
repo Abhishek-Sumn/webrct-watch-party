@@ -4,12 +4,14 @@ import { SyncMessage, SignalData } from './types';
 /**
  * Creates a WebRTC peer connection using SimplePeer
  * @param isInitiator - Whether this peer is the initiator (host)
+ * @param stream - Optional local media stream to send
  * @returns SimplePeer instance
  */
-export function createPeerConnection(isInitiator: boolean): Peer.Instance {
+export function createPeerConnection(isInitiator: boolean, stream?: MediaStream): Peer.Instance {
     const peer = new Peer({
         initiator: isInitiator,
-        trickle: false, // Keep false for simpler initial signaling (though slower)
+        stream: stream,
+        trickle: false, 
         config: {
             iceServers: [
                 // 1. Google STUN (High Reliability, multiple ports)
@@ -54,6 +56,7 @@ export function setupPeerListeners(
         onSignal: (data: SignalData) => void;
         onConnect: () => void;
         onData: (data: SyncMessage) => void;
+        onStream?: (stream: MediaStream) => void;
         onError: (err: Error) => void;
         onClose: () => void;
     }
@@ -76,6 +79,14 @@ export function setupPeerListeners(
         }
     });
 
+    // Handle incoming media stream
+    peer.on('stream', (stream: MediaStream) => {
+        console.log('[WebRTC] 📹 Remote stream received');
+        if (callbacks.onStream) {
+            callbacks.onStream(stream);
+        }
+    });
+
     peer.on('error', (err: Error) => {
         console.error('[WebRTC] ❌ Peer error:', err.message);
         callbacks.onError(err);
@@ -84,13 +95,6 @@ export function setupPeerListeners(
     peer.on('close', () => {
         console.log('[WebRTC] Connection closed');
         callbacks.onClose();
-    });
-
-    // Enhanced ICE Debugging
-    // @ts-ignore - SimplePeer types might not fully expose extensive ICE events
-    peer.on('iceStateChange', (connectionState, gatheringState) => {
-        // Note: simple-peer generally emits this as standard event or via the internal pc
-        console.log(`[WebRTC Debug] Connection: ${connectionState}, Gathering: ${gatheringState}`);
     });
 
     // Enhanced ICE Debugging & Fail-safe Connection
